@@ -9,6 +9,7 @@ import {
 import { getToken, removeToken, setToken } from "../utils/token";
 
 import { jwtDecode } from "jwt-decode";
+import { useRouter } from "@tanstack/react-router";
 
 export type AuthenticationState =
   | {
@@ -37,12 +38,15 @@ export const AuthenticationProvider: React.FC<PropsWithChildren> = ({
     const storedToken = getToken();
     if (storedToken) {
       try {
-        const decoded = jwtDecode<{ id: string }>(storedToken);
-        return {
-          isAuthenticated: true,
-          token: storedToken,
-          userId: decoded.id,
-        };
+        const decoded = jwtDecode<{ id: string; exp: number }>(storedToken);
+        const isExpired = decoded.exp * 1000 <= Date.now();
+        if (!isExpired) {
+          return {
+            isAuthenticated: true,
+            token: storedToken,
+            userId: decoded.id,
+          };
+        }
       } catch (error) {
         removeToken();
       }
@@ -65,7 +69,7 @@ export const AuthenticationProvider: React.FC<PropsWithChildren> = ({
   const signout = useCallback(() => {
     removeToken();
     setState({ isAuthenticated: false });
-  }, [setState]);
+  }, []);
 
   const contextValue = useMemo(
     () => ({ state, authenticate, signout }),
@@ -90,9 +94,19 @@ export function useAuthentication() {
 }
 
 export function useAuthToken() {
-  const { state } = useAuthentication();
+  const { state, signout } = useAuthentication();
+  
   if (!state.isAuthenticated) {
     throw new Error("User is not authenticated");
   }
+  const router = useRouter();
+
+  const decoded = jwtDecode<{ exp: number }>(state.token);
+  const isExpired = decoded.exp * 1000 <= Date.now();
+  if (isExpired) {
+    signout();
+    router.navigate({ to: "/login" });
+  }
+
   return state.token;
 }
