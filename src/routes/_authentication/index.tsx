@@ -1,97 +1,146 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
 import {
   Avatar,
   Box,
   Collapse,
   Flex,
   Icon,
+  Input,
   LinkBox,
   LinkOverlay,
   StackDivider,
   Text,
-  Input,
   VStack,
 } from "@chakra-ui/react";
 import { CaretDown, CaretUp, Chat } from "@phosphor-icons/react";
-import { format } from "timeago.js";
 import {
+  GetMemeCommentsResponse,
+  GetMemesResponse,
+} from "../../api";
+import {
+  GetUserByIdResponse,
   createMemeComment,
   getMemeComments,
-  GetMemeCommentsResponse,
   getMemes,
-  GetMemesResponse,
   getUserById,
-  GetUserByIdResponse,
 } from "../../api";
-import { useAuthToken } from "../../contexts/authentication";
+import { useMutation, useQuery } from "@tanstack/react-query";
+
 import { Loader } from "../../components/loader";
 import { MemePicture } from "../../components/meme-picture";
-import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { format } from "timeago.js";
 import { jwtDecode } from "jwt-decode";
+import { useAuthToken } from "../../contexts/authentication";
+import { useState } from "react";
+
+const userCache = new Map<string, GetUserByIdResponse>();
 
 export const MemeFeedPage: React.FC = () => {
   const token = useAuthToken();
+  const [openedCommentSection, setOpenedCommentSection] = useState<string | null>(null);
+  const [commentContent, setCommentContent] = useState<{ [key: string]: string }>({});
+
   const { isLoading, data: memes } = useQuery({
-    queryKey: ["memes"],
+    queryKey: ["memes", token],
     queryFn: async () => {
-      const memes: GetMemesResponse["results"] = [];
       const firstPage = await getMemes(token, 1);
-      memes.push(...firstPage.results);
-      const remainingPages =
-        Math.ceil(firstPage.total / firstPage.pageSize) - 1;
-      for (let i = 0; i < remainingPages; i++) {
-        const page = await getMemes(token, i + 2);
-        memes.push(...page.results);
-      }
-      const memesWithAuthorAndComments = [];
-      for (let meme of memes) {
-        const author = await getUserById(token, meme.authorId);
-        const comments: GetMemeCommentsResponse["results"] = [];
-        const firstPage = await getMemeComments(token, meme.id, 1);
-        comments.push(...firstPage.results);
-        const remainingCommentPages =
-          Math.ceil(firstPage.total / firstPage.pageSize) - 1;
-        for (let i = 0; i < remainingCommentPages; i++) {
-          const page = await getMemeComments(token, meme.id, i + 2);
-          comments.push(...page.results);
+      const totalPages = Math.ceil(firstPage.total / firstPage.pageSize);
+      
+      const pagePromises = Array.from({ length: totalPages }, (_, i) => 
+        getMemes(token, i + 1)
+      );
+      const pages = await Promise.all(pagePromises);
+      
+      const allMemes = pages.flatMap(page => page.results);
+      
+      const authorIds = [...new Set(allMemes.map(meme => meme.authorId))];
+      
+      const authorPromises = authorIds.map(id => {
+        if (userCache.has(id)) {
+          return Promise.resolve(userCache.get(id)!);
         }
-        const commentsWithAuthor: (GetMemeCommentsResponse["results"][0] & {
-          author: GetUserByIdResponse;
-        })[] = [];
-        for (let comment of comments) {
-          const author = await getUserById(token, comment.authorId);
-          commentsWithAuthor.push({ ...comment, author });
-        }
-        memesWithAuthorAndComments.push({
-          ...meme,
-          author,
-          comments: commentsWithAuthor,
+        return getUserById(token, id).then(author => {
+          userCache.set(id, author);
+          return author;
         });
-      }
-      return memesWithAuthorAndComments;
+      });
+      const authors = await Promise.all(authorPromises);
+      
+      const authorMap = new Map(authors.map(author => [author.id, author]));
+      
+      return allMemes.map(meme => ({
+        id: meme.id,
+        description: meme.description,
+        pictureUrl: meme.pictureUrl,
+        texts: meme.texts,
+        author: authorMap.get(meme.authorId)!,
+        commentsCount: parseInt(meme.commentsCount),
+        createdAt: meme.createdAt,
+      }));
     },
   });
+
   const { data: user } = useQuery({
-    queryKey: ["user"],
+    queryKey: ["user", token],
     queryFn: async () => {
-      return await getUserById(token, jwtDecode<{ id: string }>(token).id);
+      const userId = jwtDecode<{ id: string }>(token).id;
+      if (userCache.has(userId)) {
+        return userCache.get(userId)!;
+      }
+      const userData = await getUserById(token, userId);
+      userCache.set(userId, userData);
+      return userData;
     },
   });
-  const [openedCommentSection, setOpenedCommentSection] = useState<
-    string | null
-  >(null);
-  const [commentContent, setCommentContent] = useState<{
-    [key: string]: string;
-  }>({});
+
+  const { data: comments } = useQuery({
+    queryKey: ["comments", openedCommentSection, token],
+    queryFn: async () => {
+      if (!openedCommentSection) return null;
+      
+      const firstPage = await getMemeComments(token, openedCommentSection, 1);
+      const totalPages = Math.ceil(firstPage.total / firstPage.pageSize);
+      
+      const pagePromises = Array.from({ length: totalPages }, (_, i) => 
+        getMemeComments(token, openedCommentSection, i + 1)
+      );
+      const pages = await Promise.all(pagePromises);
+      
+      const allComments = pages.flatMap(page => page.results);
+      
+      const authorIds = [...new Set(allComments.map(comment => comment.authorId))];
+      
+      const authorPromises = authorIds.map(id => {
+        if (userCache.has(id)) {
+          return Promise.resolve(userCache.get(id)!);
+        }
+        return getUserById(token, id).then(author => {
+          userCache.set(id, author);
+          return author;
+        });
+      });
+      const authors = await Promise.all(authorPromises);
+      
+      const authorMap = new Map(authors.map(author => [author.id, author]));
+      
+      return allComments.map(comment => ({
+        ...comment,
+        author: authorMap.get(comment.authorId)!,
+      }));
+    },
+    enabled: !!openedCommentSection,
+  });
+
   const { mutate } = useMutation({
     mutationFn: async (data: { memeId: string; content: string }) => {
       await createMemeComment(token, data.memeId, data.content);
     },
   });
+
   if (isLoading) {
     return <Loader data-testid="meme-feed-loader" />;
   }
+
   return (
     <Flex width="full" height="full" justifyContent="center" overflowY="auto">
       <VStack
@@ -149,9 +198,7 @@ export const MemeFeedPage: React.FC = () => {
                       <Text data-testid={`meme-comments-count-${meme.id}`}>{meme.commentsCount} comments</Text>
                     </LinkOverlay>
                     <Icon
-                      as={
-                        openedCommentSection !== meme.id ? CaretDown : CaretUp
-                      }
+                      as={openedCommentSection !== meme.id ? CaretDown : CaretUp}
                       ml={2}
                       mt={1}
                     />
@@ -195,7 +242,7 @@ export const MemeFeedPage: React.FC = () => {
                   </form>
                 </Box>
                 <VStack align="stretch" spacing={4}>
-                  {meme.comments.map((comment) => (
+                  {comments?.map((comment) => (
                     <Flex key={comment.id}>
                       <Avatar
                         borderWidth="1px"
