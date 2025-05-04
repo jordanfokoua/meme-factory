@@ -94,5 +94,30 @@ describe("routes/_authentication/index", () => {
         expect(screen.getByTestId("meme-comment-author-dummy_meme_id_1-dummy_comment_id_3")).toHaveTextContent('dummy_user_3');
       });
     });
+
+    it("should immediately show new comments after submission", async () => {
+      const comment = "MemeMaster comment";
+      renderMemeFeedPage();
+
+      // Wait for the meme to be loaded
+      await waitFor(() => {
+        expect(screen.getByTestId("meme-author-dummy_meme_id_1")).toHaveTextContent('dummy_user_1');
+      });
+
+      // Click to open the comments section
+      await userEvent.click(screen.getByTestId("meme-comments-section-dummy_meme_id_1"));
+
+      // Type a new comment
+      const commentInput = screen.getByPlaceholderText("Type your comment here...");
+      await userEvent.type(commentInput, comment);
+
+      // Submit the comment
+      await userEvent.keyboard('{enter}');
+
+      // Wait for the new comment to appear
+      await waitFor(() => {
+        expect(screen.getByText(comment)).toBeInTheDocument();
+      });
+    });
   });
 });

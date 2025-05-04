@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 
 const users = {
   dummy_user_id_1: {
@@ -107,6 +107,22 @@ export const handlers = [
         pageSize: memeComments.length,
         results: memeComments,
       });
+    },
+  ),
+  http.post<{ id: string }, { content: string }>(
+    "https://fetestapi.int.mozzaik365.net/api/memes/:id/comments",
+    async ({ params, request }) => {
+      const { content } = await request.json();      
+      const memeComments = comments.filter(
+        (comment) => comment.memeId === params.id
+      );
+      const newComment = {
+        ...memeComments[0],
+        id: "dummy_comment_id_4",
+        content,
+      };
+      comments.push(newComment);
+      return HttpResponse.json(newComment);
     },
   ),
 ];
