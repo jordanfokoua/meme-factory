@@ -6,6 +6,14 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { MemeFeedPage } from "../../../routes/_authentication/index";
 import { renderWithRouter } from "../../utils";
 import userEvent from "@testing-library/user-event";
+import { vi } from 'vitest';
+
+vi.mock('jwt-decode', () => ({
+  jwtDecode: vi.fn().mockImplementation(() => ({
+    id: "dummy_user_id",
+    exp: Math.floor(Date.now() / 1000) + 3600, // Token expires in 1 hour
+  }))
+}));
 
 describe("routes/_authentication/index", () => {
   describe("MemeFeedPage", () => {
