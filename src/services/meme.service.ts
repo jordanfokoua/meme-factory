@@ -1,10 +1,11 @@
 import {
-	MemeCardCommentPageType,
-	MemeCardCommentType,
-	MemeCardType,
-	MemeCommentResult,
-	MemePictureText,
-	MemeResult,
+    CreateMemeResponse,
+    MemeCardCommentPageType,
+    MemeCardCommentType,
+    MemeCardType,
+    MemeCommentResult,
+    MemePictureText,
+    MemeResult,
 } from '../types/meme';
 import { createMeme, getMemeComments, getMemes, getUserById } from '../api';
 
@@ -22,25 +23,19 @@ export async function createNewMeme(
 	picture: File,
 	description: string,
 	texts: MemePictureText[]
-): Promise<MemeResult> {
-	try {
-        const formData = new FormData();
+): Promise<CreateMemeResponse> {
+	const formData = new FormData();
 
-        formData.append("Picture", picture);
-        formData.append("Description", description);
-      
-        texts.forEach((text, index) => {
-          formData.append(`Texts[${index}][Content]`, text.content);
-          formData.append(`Texts[${index}][X]`, text.x.toString());
-          formData.append(`Texts[${index}][Y]`, text.y.toString());
-        });
-      
-        const newMeme = await createMeme(token, formData);
-      
-        return newMeme;
-	} catch (error) {
-		throw new Error(`Failed to create meme: ${error}`);
-	}
+	formData.append('Picture', picture);
+	formData.append('Description', description);
+
+	texts.forEach((text, index) => {
+		formData.append(`Texts[${index}][Content]`, text.content);
+		formData.append(`Texts[${index}][X]`, text.x.toString());
+		formData.append(`Texts[${index}][Y]`, text.y.toString());
+	});
+
+	return createMeme(token, formData);
 }
 
 /**

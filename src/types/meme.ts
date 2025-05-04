@@ -11,7 +11,7 @@ export type MemeResult = {
   authorId: string;
   pictureUrl: string;
   description: string;
-  commentsCount: string;
+  commentsCount: number;
   texts: MemePictureText[];
   createdAt: string;
 };
@@ -50,7 +50,7 @@ export type CreateMemeResponse = {
   id: string;
   authorId: string;
   pictureUrl: string;
-  descripition: string;
+  description: string;
   texts: MemePictureText[];
   commentsCount: number;
   createdAt: string;
