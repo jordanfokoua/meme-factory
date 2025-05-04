@@ -48,7 +48,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 	const { data: comments } = useQuery({
 		queryKey: ['comments', memeId, token],
 		queryFn: async () => {
-			if (!isOpen) return null;
+			if (!isOpen || commentsCount === 0) return null;
 
 			const firstPage = await getMemeComments(token, memeId, 1);
 			const totalPages = Math.ceil(firstPage.total / firstPage.pageSize);
@@ -80,7 +80,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 				author: authorMap.get(comment.authorId)!,
 			}));
 		},
-		enabled: isOpen,
+		enabled: isOpen && commentsCount > 0,
 	});
 
 	const { mutate } = useMutation({
@@ -92,6 +92,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 		},
 	});
 
+	const handleToggleComments = () => {
+		setIsOpen((prev) => !prev);
+	};
+
 	return (
 		<>
 			<LinkBox as={Box} py={2} borderBottom="1px solid black">
@@ -100,11 +104,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 						<LinkOverlay
 							data-testid={`meme-comments-section-${memeId}`}
 							cursor="pointer"
-							onClick={() => setIsOpen(!isOpen)}
+							onClick={handleToggleComments}
 						>
 							<Text data-testid={`meme-comments-count-${memeId}`}>{commentsCount} comments</Text>
 						</LinkOverlay>
-						<Icon as={isOpen ? CaretUp : CaretDown} ml={2} mt={1} />
+						{commentsCount > 0 && <Icon as={isOpen ? CaretUp : CaretDown} ml={2} mt={1} />}
 					</Flex>
 					<Icon as={Chat} />
 				</Flex>
