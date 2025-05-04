@@ -48,7 +48,7 @@ export const MemeFeedPage: React.FC = () => {
 		<Feed
 			queryKey={['memes', token]}
 			queryFn={fetchMemes}
-			renderItem={(meme) => <MemeCard meme={meme} />}
+			renderItem={(meme, index) => <MemeCard key={index} meme={meme} />}
 			loadingState={<Loader data-testid="meme-feed-loader" />}
 			containerProps={{ p: 4, width: 'full', maxWidth: 800, divider: <StackDivider border="gray.200" /> }}
 		/>

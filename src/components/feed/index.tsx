@@ -16,7 +16,7 @@ export type InfiniteData<T> = {
 type FeedProps<T> = {
   queryKey: string[];
   queryFn: (pageParam: number) => Promise<Page<T>>;
-  renderItem: (item: T) => React.ReactNode;
+  renderItem: (item: T, index: number) => React.ReactNode;
   emptyState?: React.ReactNode;
   loadingState?: React.ReactNode;
   containerProps?: React.ComponentProps<typeof VStack>;
@@ -84,7 +84,7 @@ export const Feed = <T,>({
   return (
     <Flex ref={containerRef} width="full" height="full" justifyContent="center" overflowY="auto">
       <VStack width="full" maxWidth={800} {...containerProps}>
-        {items.map((item) => renderItem(item))}
+        {items.map((item, index) => renderItem(item, index))}
         {isFetchingNextPage && (
           <Flex justify="center" p={4}>
             <Spinner />
