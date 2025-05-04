@@ -1,6 +1,7 @@
 import {
 	Avatar,
 	Box,
+	Button,
 	Collapse,
 	Flex,
 	Icon,
@@ -12,7 +13,7 @@ import {
 } from '@chakra-ui/react';
 import { CaretDown, CaretUp, Chat } from '@phosphor-icons/react';
 import { createMemeComment, getMemeComments, getUserById } from '../../api';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 
 import { GetUserByIdResponse } from '../../api';
 import { format } from 'timeago.js';
@@ -21,6 +22,18 @@ import { useAuthToken } from '../../contexts/authentication';
 import { useState } from 'react';
 
 const userCache = new Map<string, GetUserByIdResponse>();
+
+type Comment = {
+	id: string;
+	content: string;
+	author: GetUserByIdResponse;
+	createdAt: string;
+};
+
+type CommentPage = {
+	comments: Comment[];
+	nextPage: number | undefined;
+};
 
 type CommentSectionProps = {
 	memeId: string;
@@ -45,22 +58,20 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 		},
 	});
 
-	const { data: comments } = useQuery({
+	const {
+		data: commentsData,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+	} = useInfiniteQuery<CommentPage, Error, { pages: CommentPage[]; pageParams: number[] }, string[], number>({
 		queryKey: ['comments', memeId, token],
-		queryFn: async () => {
-			if (!isOpen || commentsCount === 0) return null;
+		queryFn: async ({ pageParam = 1 }) => {
+			if (!isOpen || commentsCount === 0) return { comments: [], nextPage: undefined };
 
-			const firstPage = await getMemeComments(token, memeId, 1);
-			const totalPages = Math.ceil(firstPage.total / firstPage.pageSize);
+			const page = await getMemeComments(token, memeId, pageParam);
+			const comments = page.results;
 
-			const pagePromises = Array.from({ length: totalPages }, (_, i) =>
-				getMemeComments(token, memeId, i + 1)
-			);
-			const pages = await Promise.all(pagePromises);
-
-			const allComments = pages.flatMap((page) => page.results);
-
-			const authorIds = [...new Set(allComments.map((comment) => comment.authorId))];
+			const authorIds = [...new Set(comments.map((comment) => comment.authorId))];
 
 			const authorPromises = authorIds.map((id) => {
 				if (userCache.has(id)) {
@@ -75,11 +86,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 
 			const authorMap = new Map(authors.map((author) => [author.id, author]));
 
-			return allComments.map((comment) => ({
-				...comment,
-				author: authorMap.get(comment.authorId)!,
-			}));
+			return {
+				comments: comments.map((comment) => ({
+					...comment,
+					author: authorMap.get(comment.authorId)!,
+				})),
+				nextPage: pageParam < Math.ceil(page.total / page.pageSize) ? pageParam + 1 : undefined,
+			};
 		},
+		getNextPageParam: (lastPage) => lastPage.nextPage,
+		initialPageParam: 1,
 		enabled: isOpen && commentsCount > 0,
 	});
 
@@ -95,6 +111,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 	const handleToggleComments = () => {
 		setIsOpen((prev) => !prev);
 	};
+
+	const comments = commentsData?.pages.flatMap((page: CommentPage) => page.comments) ?? [];
 
 	return (
 		<>
@@ -141,7 +159,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 					</form>
 				</Box>
 				<VStack align="stretch" spacing={4}>
-					{comments?.map((comment) => (
+					{comments.map((comment: Comment) => (
 						<Flex key={comment.id}>
 							<Avatar
 								borderWidth="1px"
@@ -172,6 +190,17 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 							</Box>
 						</Flex>
 					))}
+					{hasNextPage && (
+						<Button
+							onClick={() => fetchNextPage()}
+							isLoading={isFetchingNextPage}
+							variant="ghost"
+							size="sm"
+							alignSelf="center"
+						>
+							Load More Comments
+						</Button>
+					)}
 				</VStack>
 			</Collapse>
 		</>
