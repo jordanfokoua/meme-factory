@@ -1,12 +1,14 @@
-import { jwtDecode } from "jwt-decode";
 import {
-  createContext,
   PropsWithChildren,
+  createContext,
   useCallback,
   useContext,
   useMemo,
   useState,
 } from "react";
+import { getToken, removeToken, setToken } from "../utils/token";
+
+import { jwtDecode } from "jwt-decode";
 
 export type AuthenticationState =
   | {
@@ -31,12 +33,26 @@ export const AuthenticationContext = createContext<Authentication | undefined>(
 export const AuthenticationProvider: React.FC<PropsWithChildren> = ({
   children,
 }) => {
-  const [state, setState] = useState<AuthenticationState>({
-    isAuthenticated: false,
+  const [state, setState] = useState<AuthenticationState>(() => {
+    const storedToken = getToken();
+    if (storedToken) {
+      try {
+        const decoded = jwtDecode<{ id: string }>(storedToken);
+        return {
+          isAuthenticated: true,
+          token: storedToken,
+          userId: decoded.id,
+        };
+      } catch (error) {
+        removeToken();
+      }
+    }
+    return { isAuthenticated: false };
   });
 
   const authenticate = useCallback(
     (token: string) => {
+      setToken(token);
       setState({
         isAuthenticated: true,
         token,
@@ -47,6 +63,7 @@ export const AuthenticationProvider: React.FC<PropsWithChildren> = ({
   );
 
   const signout = useCallback(() => {
+    removeToken();
     setState({ isAuthenticated: false });
   }, [setState]);
 
