@@ -67,7 +67,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 	} = useInfiniteQuery<CommentPage, Error, { pages: CommentPage[]; pageParams: number[] }, string[], number>({
 		queryKey: ['comments', memeId, token],
 		queryFn: async ({ pageParam = 1 }) => {
-			if (!isOpen || commentsCount === 0) return { comments: [], nextPage: undefined };
+			if (!isOpen) return { comments: [], nextPage: undefined };
 
 			const page = await getMemeComments(token, memeId, pageParam);
 			const comments = page.results;
@@ -97,7 +97,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 		},
 		getNextPageParam: (lastPage) => lastPage.nextPage,
 		initialPageParam: 1,
-		enabled: isOpen && commentsCount > 0,
+		enabled: isOpen,
 	});
 
 	const { mutate } = useMutation({
