@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react';
 import { CaretDown, CaretUp, Chat } from '@phosphor-icons/react';
 import { createMemeComment, getMemeComments, getUserById } from '../../api';
-import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { GetUserByIdResponse } from '../../api';
 import { format } from 'timeago.js';
@@ -44,6 +44,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 	const token = useAuthToken();
 	const [isOpen, setIsOpen] = useState(false);
 	const [commentContent, setCommentContent] = useState('');
+	const queryClient = useQueryClient();
 
 	const { data: user } = useQuery({
 		queryKey: ['user', token],
@@ -105,6 +106,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ memeId, comments
 		},
 		onSuccess: () => {
 			setCommentContent('');
+			queryClient.invalidateQueries({ queryKey: ['comments', memeId, token] });
 		},
 	});
 
