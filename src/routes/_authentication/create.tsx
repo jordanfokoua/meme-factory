@@ -7,6 +7,10 @@ import {
   Icon,
   IconButton,
   Input,
+  Slider,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderTrack,
   Textarea,
   VStack,
   useToast,
@@ -33,6 +37,7 @@ function CreateMemePage() {
   const [picture, setPicture] = useState<Picture | null>(null);
   const [texts, setTexts] = useState<MemePictureProps["texts"]>([]);
   const [description, setDescription] = useState("");
+  const [selectedCaptionIndex, setSelectedCaptionIndex] = useState<number | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
   const token = useAuthToken();
@@ -65,6 +70,21 @@ function CreateMemePage() {
     setTexts(newTexts);
   };
 
+  const handleCaptionClick = (index: number) => {
+    setSelectedCaptionIndex(index);
+  };
+
+  const handlePositionChange = (axis: 'x' | 'y', value: number) => {
+    if (selectedCaptionIndex === null) return;
+    
+    const newTexts = [...texts];
+    newTexts[selectedCaptionIndex] = {
+      ...newTexts[selectedCaptionIndex],
+      [axis]: value,
+    };
+    setTexts(newTexts);
+  };
+
   const memePicture = useMemo(() => {
     if (!picture) {
       return undefined;
@@ -73,8 +93,10 @@ function CreateMemePage() {
     return {
       pictureUrl: picture.url,
       texts,
+      selectedIndex: selectedCaptionIndex,
+      onCaptionClick: handleCaptionClick,
     };
-  }, [picture, texts]);
+  }, [picture, texts, selectedCaptionIndex]);
 
   const handleSubmit = async () => {
     if (!picture) return;
@@ -108,6 +130,47 @@ function CreateMemePage() {
               Upload your picture
             </Heading>
             <MemeEditor onDrop={handleDrop} memePicture={memePicture} />
+            {selectedCaptionIndex !== null && (
+              <Box mt={4} p={4} borderWidth="1px" borderRadius="md">
+                <Heading as="h3" size="sm" mb={4}>
+                  Position Controls
+                </Heading>
+                <VStack spacing={4}>
+                  <Box width="full">
+                    <Heading as="h4" size="xs" mb={2}>
+                      X Position
+                    </Heading>
+                    <Slider
+                      value={texts[selectedCaptionIndex].x}
+                      min={0}
+                      max={800}
+                      onChange={(value) => handlePositionChange('x', value)}
+                    >
+                      <SliderTrack>
+                        <SliderFilledTrack />
+                      </SliderTrack>
+                      <SliderThumb />
+                    </Slider>
+                  </Box>
+                  <Box width="full">
+                    <Heading as="h4" size="xs" mb={2}>
+                      Y Position
+                    </Heading>
+                    <Slider
+                      value={texts[selectedCaptionIndex].y}
+                      min={0}
+                      max={450}
+                      onChange={(value) => handlePositionChange('y', value)}
+                    >
+                      <SliderTrack>
+                        <SliderFilledTrack />
+                      </SliderTrack>
+                      <SliderThumb />
+                    </Slider>
+                  </Box>
+                </VStack>
+              </Box>
+            )}
           </Box>
           <Box>
             <Heading as="h2" size="md" mb={2}>

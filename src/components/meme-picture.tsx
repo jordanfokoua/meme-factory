@@ -9,6 +9,8 @@ export type MemePictureProps = {
     y: number;
   }[];
   dataTestId?: string;
+  selectedIndex?: number | null;
+  onCaptionClick?: (index: number) => void;
 };
 
 const REF_WIDTH = 800;
@@ -19,6 +21,8 @@ export const MemePicture: React.FC<MemePictureProps> = ({
   pictureUrl,
   texts: rawTexts,
   dataTestId = '',
+  selectedIndex,
+  onCaptionClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dimensions = useDimensions(containerRef, true);
@@ -67,7 +71,13 @@ export const MemePicture: React.FC<MemePictureProps> = ({
           fontWeight="bold"
           userSelect="none"
           textTransform="uppercase"
-          style={{ WebkitTextStroke: "1px black" }}
+          style={{ 
+            WebkitTextStroke: "1px black",
+            border: selectedIndex === index ? "2px solid white" : "none",
+            padding: selectedIndex === index ? "2px" : "0",
+            cursor: "pointer",
+          }}
+          onClick={() => onCaptionClick?.(index)}
           data-testid={`${dataTestId}-text-${index}`}
         >
           {text.content}
