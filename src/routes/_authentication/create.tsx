@@ -2,19 +2,20 @@ import {
   Box,
   Button,
   Flex,
-  Heading,
   HStack,
+  Heading,
   Icon,
   IconButton,
   Input,
   Textarea,
   VStack,
 } from "@chakra-ui/react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { MemeEditor } from "../../components/meme-editor";
-import { useMemo, useState } from "react";
-import { MemePictureProps } from "../../components/meme-picture";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { Plus, Trash } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
+
+import { MemeEditor } from "../../components/meme-editor";
+import { MemePictureProps } from "../../components/meme-picture";
 
 export const Route = createFileRoute("/_authentication/create")({
   component: CreateMemePage,
@@ -49,6 +50,12 @@ function CreateMemePage() {
 
   const handleDeleteCaptionButtonClick = (index: number) => {
     setTexts(texts.filter((_, i) => i !== index));
+  };
+
+  const handleCaptionChange = (index: number, newContent: string) => {
+    const newTexts = [...texts];
+    newTexts[index] = { ...newTexts[index], content: newContent };
+    setTexts(newTexts);
   };
 
   const memePicture = useMemo(() => {
@@ -94,7 +101,12 @@ function CreateMemePage() {
           <VStack>
             {texts.map((text, index) => (
               <Flex width="full">
-                <Input key={index} value={text.content} mr={1} />
+                <Input 
+                  key={index} 
+                  value={text.content} 
+                  onChange={(e) => handleCaptionChange(index, e.target.value)}
+                  mr={1} 
+                />
                 <IconButton
                   onClick={() => handleDeleteCaptionButtonClick(index)}
                   aria-label="Delete caption"
