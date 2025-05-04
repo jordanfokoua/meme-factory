@@ -9,13 +9,16 @@ import {
   Input,
   Textarea,
   VStack,
+  useToast,
 } from "@chakra-ui/react";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Plus, Trash } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 import { MemeEditor } from "../../components/meme-editor";
 import { MemePictureProps } from "../../components/meme-picture";
+import { createNewMeme } from "../../services/meme.service";
+import { useAuthToken } from "../../contexts/authentication";
 
 export const Route = createFileRoute("/_authentication/create")({
   component: CreateMemePage,
@@ -29,6 +32,10 @@ type Picture = {
 function CreateMemePage() {
   const [picture, setPicture] = useState<Picture | null>(null);
   const [texts, setTexts] = useState<MemePictureProps["texts"]>([]);
+  const [description, setDescription] = useState("");
+  const navigate = useNavigate();
+  const toast = useToast();
+  const token = useAuthToken();
 
   const handleDrop = (file: File) => {
     setPicture({
@@ -42,8 +49,8 @@ function CreateMemePage() {
       ...texts,
       {
         content: `New caption ${texts.length + 1}`,
-        x: Math.random() * 400,
-        y: Math.random() * 225,
+        x: Math.trunc(Math.random() * 400),
+        y: Math.trunc(Math.random() * 225),
       },
     ]);
   };
@@ -69,6 +76,29 @@ function CreateMemePage() {
     };
   }, [picture, texts]);
 
+  const handleSubmit = async () => {
+    if (!picture) return;
+
+    try {
+      await createNewMeme(token, picture.file, description, texts);
+      toast({
+        title: "Meme created successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      navigate({ to: "/" });
+    } catch (error) {
+      toast({
+        title: "Failed to create meme",
+        description: "Please try again later",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   return (
     <Flex width="full" height="full">
       <Box flexGrow={1} height="full" p={4} overflowY="auto">
@@ -83,7 +113,11 @@ function CreateMemePage() {
             <Heading as="h2" size="md" mb={2}>
               Describe your meme
             </Heading>
-            <Textarea placeholder="Type your description here..." />
+            <Textarea 
+              placeholder="Type your description here..." 
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </Box>
         </VStack>
       </Box>
@@ -100,9 +134,9 @@ function CreateMemePage() {
         <Box p={4} flexGrow={1} height={0} overflowY="auto">
           <VStack>
             {texts.map((text, index) => (
-              <Flex width="full">
+              <Flex key={index} width="full">
                 <Input 
-                  key={index} 
+                 
                   value={text.content} 
                   onChange={(e) => handleCaptionChange(index, e.target.value)}
                   mr={1} 
@@ -143,7 +177,8 @@ function CreateMemePage() {
             size="sm"
             width="full"
             color="white"
-            isDisabled={memePicture === undefined}
+            isDisabled={memePicture === undefined || !description}
+            onClick={handleSubmit}
           >
             Submit
           </Button>
